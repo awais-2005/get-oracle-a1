@@ -15,7 +15,7 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
                 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f8f9fa;
             min-height: 100vh;
             padding: 20px;
         }
@@ -26,11 +26,11 @@
         }
 
         header {
-            background: rgba(255, 255, 255, 0.95);
+            background: #f8f9fa;
             padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            /* border-radius: 8px; */
+            /* margin-bottom: 30px; */
+            /* box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); */
         }
 
         h1 {
@@ -57,17 +57,17 @@
         }
 
         .card {
-            background: white;
-            border-radius: 8px;
+            background: #f8f9fa;
+            /* border-radius: 8px; */
             padding: 25px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            /* box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); */
         }
 
         .card h2 {
             color: #333;
             margin-bottom: 20px;
             font-size: 18px;
-            border-bottom: 2px solid #667eea;
+            border-bottom: 2px solid #555555;
             padding-bottom: 10px;
         }
 
@@ -127,8 +127,8 @@
         }
 
         button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #cacaca;
+            color: #3c3c3c;
             border: none;
             padding: 12px 30px;
             border-radius: 4px;
@@ -163,6 +163,12 @@
 
         .logs-section {
             grid-column: 1 / -1;
+        }
+
+        .refresh-btn {
+            position: relative;
+            top: 32px;
+            left: calc(100% - 112.14px);
         }
 
         .logs-container {
@@ -305,7 +311,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🚀 Oracle A1.Flex Automation Dashboard</h1>
+            <h1>Oracle A1.Flex Automation Dashboard</h1>
             <p class="header-subtitle">Create and manage Oracle Cloud A1.Flex instances with ease</p>
         </header>
 
@@ -447,6 +453,7 @@
 
             <!-- Execution Logs Section -->
             <div class="card logs-section">
+                <button class="refresh-btn" onclick="loadExecutions()">Refresh</button>
                 <h2>Recent Executions</h2>
                 <div id="executionsList">
                     <p style="color: #999; text-align: center;">No executions yet</p>
@@ -628,7 +635,7 @@
 
         // Auto-refresh executions
         loadExecutions();
-        setInterval(loadExecutions, 2000);
+        // setInterval(loadExecutions, 60000);
     </script>
 </body>
 

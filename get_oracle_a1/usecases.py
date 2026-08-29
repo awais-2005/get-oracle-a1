@@ -73,13 +73,11 @@ def create(
         raise RuntimeError(f'Failed to find image {cmd.os_name}-{cmd.os_version}')
 
     logger.info(f'Try to create {cmd}')
-    print(f'Try to create {cmd}')
+    # print(f'Try to create {cmd}')
     report(f'Try to create {cmd}')
 
     try_count = 0
-    count_after_last_rate_limited = 0
     while True:
-        print(f"Attempt {try_count + 1}...")
         report(f"Attempt {try_count + 1}...")
         try:
             instance = helpers.create_a1(
@@ -99,17 +97,15 @@ def create(
             report(f"Attempt {try_count + 1} failed: [{e.status} {e.code}] {e.message}")
 
             if e.status == 429 and e.code == 'TooManyRequests' and e.message == 'Too many requests for the user':
+                sleep(1) # to prevent rate limited
                 pass
 
             elif not (e.status == 500 and e.code == 'InternalError' and e.message == 'Out of host capacity.'):
                 logger.exception(f'Failed to create instance with unknown reason. ({try_count} times tried)')
                 report(f"Unrecoverable error after {try_count + 1} attempts, giving up: {e.message}")
+                sleep(CREATION_RETRY_INTERVAL) # to prevent rate limited
                 raise e
 
-            else:
-                count_after_last_rate_limited += 1
-
-            sleep(CREATION_RETRY_INTERVAL)  # to prevent rate limited
 
         else:
             logger.info(f'Succeed to create in {try_count} tries.')
