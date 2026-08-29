@@ -4,6 +4,7 @@ Provides a UI to create, manage, and monitor instances
 """
 
 import logging
+import traceback
 import os
 import tempfile
 import configparser
@@ -212,6 +213,7 @@ def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notific
 
     except Exception as e:
         tracker.log(f"✗ Error: {str(e)}")
+        tracker.log(f"✗ stacktrace: {traceback.format_exc()}")
         tracker.finish('failed')
         logger.exception("Failed to create instance")
     finally:
