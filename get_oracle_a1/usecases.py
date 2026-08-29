@@ -59,7 +59,7 @@ def create(
     oci_user: config.OCIUser,
     on_attempt: Optional[Callable[[str, str], None]] = None,
 ) -> None:
-    def report(message: str, err_type: "429" | "500" | "unknown" = None) -> None:
+    def report(message: str, err_type: str = None) -> None:
         if on_attempt is not None:
             on_attempt(message, err_type)
 
