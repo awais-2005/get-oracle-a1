@@ -622,8 +622,8 @@
                                 </div>
 
                             </div>
-                            <div class="err-count rate-limited">Rate Limited: ${exec.e["e_429"]}</div>
-                            <div class="err-count creation-failed">Creation Failed: ${exec.e["e_500"]}</div>
+                            <div class="err-count rate-limited">Rate Limited: ${exec.e ? exec.e["e_429"] : 0}</div>
+                            <div class="err-count creation-failed">Creation Failed: ${exec.e ? exec.e["e_500"] : 0}</div>
                             <span class="status-badge status-${exec.status}">${exec.status}</span>
                         </div>
                         <div class="logs-container">
