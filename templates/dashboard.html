@@ -372,6 +372,20 @@
                     </div>
 
                     <div class="form-group">
+                        <label>OCI Config File (required)</label>
+                        <input type="file" name="oci_config_file" accept=".txt,.ini,text/plain" required>
+                        <div class="help-text">Upload your OCI config file (e.g. ~/.oci/config) — overrides server env
+                            vars for this request</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>OCI Private Key File (required)</label>
+                        <input type="file" name="oci_private_key_file" accept=".pem,.key,text/plain" required>
+                        <div class="help-text">Upload your id_rsa.pem — required together with the config file above
+                        </div>
+                    </div>
+
+                    <div class="form-group">
                         <label>OCI Profile</label>
                         <input type="text" name="profile" placeholder="DEFAULT" value="DEFAULT">
                     </div>
@@ -493,6 +507,30 @@
                     data.ssh_authorized_keys = (await readFileAsText(sshFile)).trim();
                 } catch (err) {
                     showAlert(alertId, 'Could not read the SSH key file', 'error');
+                    return;
+                }
+            }
+
+            // Optional: OCI config + private key uploaded with this request,
+            // overrides the server's OCI_* environment variables.
+            const ociConfigFile = formData.get('oci_config_file');
+            const ociKeyFile = formData.get('oci_private_key_file');
+            delete data.oci_config_file;
+            delete data.oci_private_key_file;
+
+            const hasConfig = ociConfigFile instanceof File && ociConfigFile.size > 0;
+            const hasKey = ociKeyFile instanceof File && ociKeyFile.size > 0;
+
+            if (hasConfig !== hasKey) {
+                showAlert(alertId, 'Upload both the OCI config file and the private key together, or neither', 'error');
+                return;
+            }
+            if (hasConfig && hasKey) {
+                try {
+                    data.oci_config_content = await readFileAsText(ociConfigFile);
+                    data.oci_private_key_content = await readFileAsText(ociKeyFile);
+                } catch (err) {
+                    showAlert(alertId, 'Could not read the OCI credential files', 'error');
                     return;
                 }
             }
