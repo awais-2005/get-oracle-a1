@@ -38,18 +38,28 @@ class ExecutionTracker:
 
     def __init__(self, execution_id: str):
         self.execution_id = execution_id
+        self.e = {} # Raise Exeptions
         self.logs = []
         self.status = 'running'  # running, success, failed
         self.start_time = datetime.now()
         self.end_time = None
         execution_logs[execution_id] = self
 
-    def log(self, message: str):
-        self.logs.append({
-            'timestamp': datetime.now().isoformat(),
-            'message': message
-        })
-        logger.info(f"[{self.execution_id}] {message}")
+    def log(self, message: str, err_type: "429" | "500" | "unknown" = None):
+        if message != "":
+            self.logs.append({
+                'timestamp': datetime.now().isoformat(),
+                'message': message
+            })
+            logger.info(f"[{self.execution_id}] {message}")
+
+        if err_type == None:
+            return
+
+        if err_type in self.e:
+            e[err_type] += 1
+        else:
+            e[err_type] = 1
 
     def finish(self, status: str = 'success'):
         self.status = status
@@ -62,6 +72,7 @@ class ExecutionTracker:
             'start_time': self.start_time.isoformat(),
             'end_time': self.end_time.isoformat() if self.end_time else None,
             'logs': self.logs,
+            "e": self.e,
         }
 
 
@@ -276,7 +287,8 @@ def list_executions():
     """List all executions"""
     executions = [tracker.to_dict() for tracker in execution_logs.values()]
     # Sort by start time, newest first
-    executions.sort(key=lambda x: x['start_time'], reverse=True)
+    executions.sort(key=lambda x: x['start_time'])
+
     return jsonify(executions)
 
 

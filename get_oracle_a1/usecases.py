@@ -57,11 +57,11 @@ def increase(cmd: commands.IncreaseResource, oci_user: config.OCIUser) -> None:
 def create(
     cmd: commands.CreateA1,
     oci_user: config.OCIUser,
-    on_attempt: Optional[Callable[[str], None]] = None,
+    on_attempt: Optional[Callable[[str, str], None]] = None,
 ) -> None:
-    def report(message: str) -> None:
+    def report(message: str, err_type: "429" | "500" | "unknown" = None) -> None:
         if on_attempt is not None:
-            on_attempt(message)
+            on_attempt(message, err_type)
 
     print("Creation started...")
     report("Creation started...")
@@ -77,6 +77,9 @@ def create(
     report(f'Try to create {cmd}')
 
     try_count = 0
+    e_unknown = 0
+    e_429 = 0
+    e_500 = 0
     while True:
         report(f"Attempt {try_count + 1}...")
         try:
@@ -92,19 +95,23 @@ def create(
                 ssh_authorized_keys=cmd.ssh_authorized_keys,
             )
 
+            report(f"Finally after {try_count} attempts got no Exception!")
+
         except ServiceError as e:
-            print(f"Failed: {e.message}")
-            report(f"Attempt {try_count + 1} failed: [{e.status} {e.code}] {e.message}")
+            # print(f"Failed: {e.message}")
 
             if e.status == 429 and e.code == 'TooManyRequests' and e.message == 'Too many requests for the user':
+                report("", "429")
                 sleep(1) # to prevent rate limited
                 pass
 
             elif not (e.status == 500 and e.code == 'InternalError' and e.message == 'Out of host capacity.'):
                 logger.exception(f'Failed to create instance with unknown reason. ({try_count} times tried)')
-                report(f"Unrecoverable error after {try_count + 1} attempts, giving up: {e.message}")
-                sleep(CREATION_RETRY_INTERVAL) # to prevent rate limited
+                report(f"Unrecoverable error after {try_count + 1} attempts, giving up: {e.message}", "unknown")
                 raise e
+            else:
+                report(f"Attempt {try_count + 1} failed: [{e.status} {e.code}] {e.message}", "500")
+                sleep(CREATION_RETRY_INTERVAL) # to prevent rate limited
 
 
         else:

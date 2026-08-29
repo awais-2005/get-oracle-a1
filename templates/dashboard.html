@@ -249,6 +249,24 @@
             margin-bottom: 10px;
         }
 
+        .err-count {
+            font-size: 12px;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: 12px;
+            /* margin-left: 10px; */
+        }
+
+        .rate-limited {
+            background: #dc3545;
+            color: white;
+        }
+
+        .creation-failed {
+            background: #ffc107;
+            color: #333;
+        }
+
         .alert {
             padding: 15px;
             border-radius: 4px;
@@ -602,7 +620,10 @@
                                 <div class="execution-details">
                                     Started: ${new Date(exec.start_time).toLocaleString()}
                                 </div>
+
                             </div>
+                            <div class="err-count rate-limited">Rate Limited: ${exec.e["e_429"]}</div>
+                            <div class="err-count creation-failed">Creation Failed: ${exec.e["e_500"]}</div>
                             <span class="status-badge status-${exec.status}">${exec.status}</span>
                         </div>
                         <div class="logs-container">
