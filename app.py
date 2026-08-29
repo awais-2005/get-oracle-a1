@@ -5,6 +5,7 @@ Provides a UI to create, manage, and monitor instances
 
 import logging
 import os
+import tempfile
 import json
 import threading
 from datetime import datetime
@@ -96,6 +97,7 @@ def send_email(to_email: str, subject: str, body: str):
 
 def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notification: bool):
     """Background task to create instance"""
+    ssh_key_path: Optional[Path] = None
     try:
         tracker.log(f"Starting instance creation: {cmd_data['display_name']}")
 
@@ -107,9 +109,8 @@ def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notific
         try:
             tracker.log(f"Loading OCI config from {oci_config_path}")
             oci_user = config.OCIUser.from_config_file(oci_config_path, oci_profile)
-        except Exception as e:
+        except Exception:
             tracker.log(f"Config file not found, trying environment variables")
-            # Fallback to environment variables (for Render deployment)
             oci_user = config.OCIUser(
                 user=os.getenv('OCI_USER'),
                 key_content=os.getenv('OCI_PRIVATE_KEY'),
@@ -119,10 +120,20 @@ def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notific
                 region=os.getenv('OCI_REGION', 'ap-hyderabad-1'),
             )
 
-        # Prepare SSH key
-        ssh_key_path = Path(cmd_data['ssh_authorized_keys']).expanduser()
-        if not ssh_key_path.exists():
-            raise FileNotFoundError(f"SSH key not found: {ssh_key_path}")
+        # Prepare SSH key: the dashboard now uploads the key's content
+        # directly (a filesystem path typed in the browser can't exist on
+        # Render), so write it to a temp file since OCI needs a path to read.
+        ssh_key_content = (cmd_data.get('ssh_authorized_keys') or '').strip()
+        if not ssh_key_content:
+            raise ValueError("SSH public key is required")
+        if not ssh_key_content.startswith(('ssh-rsa', 'ssh-ed25519', 'ecdsa-sha2-')):
+            raise ValueError("That doesn't look like an SSH public key (id_rsa.pub) — "
+                              "make sure you uploaded the .pub file, not the private key")
+
+        fd, tmp_path = tempfile.mkstemp(prefix='ssh_key_', suffix='.pub')
+        with os.fdopen(fd, 'w') as f:
+            f.write(ssh_key_content)
+        ssh_key_path = Path(tmp_path)
 
         # Create command
         create_cmd = commands.CreateA1(
@@ -164,7 +175,9 @@ def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notific
         tracker.log(f"✗ Error: {str(e)}")
         tracker.finish('failed')
         logger.exception("Failed to create instance")
-
+    finally:
+        if ssh_key_path is not None:
+            ssh_key_path.unlink(missing_ok=True)
 
 @app.route('/')
 def dashboard():
