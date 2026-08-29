@@ -179,7 +179,7 @@ def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notific
         tracker.log(f"Command prepared: {create_cmd}")
 
         # Create instance
-        usecases.create(create_cmd, oci_user)
+        usecases.create(create_cmd, oci_user, on_attempt=tracker.log)
 
         tracker.log(f"✓ Instance '{cmd_data['display_name']}' created successfully!")
         tracker.finish('success')
