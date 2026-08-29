@@ -1,3 +1,4 @@
+import re
 from collections.abc import Iterable, Sequence
 from functools import cache
 from pathlib import Path
@@ -149,16 +150,35 @@ def verify_instance_for_increasing(instance: Instance, resource_limit: ResourceL
 
 def get_image(oci_user: OCIUser, os_name: str, os_version: Optional[str]) -> Optional[Image]:
     client = ComputeClient(config=oci_user.config)
+
+    # OCI's operating_system_version field is always a plain number like
+    # "22.04" - "Minimal"/"aarch64" only exist in the image's display name,
+    # not this field. Extract just the number for the API call, and treat
+    # "minimal" in the input separately as a display-name filter below.
+    raw_version = (os_version or '').strip()
+    wants_minimal = 'minimal' in raw_version.lower()
+    match = re.match(r'^\d+(?:\.\d+)*', raw_version)
+    normalized_version = match.group(0) if match else (os_version or None)
+
     images: Sequence[Image] = sorted(
         client.list_images(
             oci_user.compartment_id,
             shape=TARGET_SHAPE,
             operating_system=os_name,
-            operating_system_version=os_version,
+            operating_system_version=normalized_version,
         ).data,
         key=lambda i: i.operating_system_version,
         reverse=True,
     )
+
+    # Multiple images can share the same operating_system_version (a
+    # "Minimal" build and the full build both report "22.04") - display
+    # name is the only place that tells them apart.
+    if wants_minimal:
+        images = [i for i in images if 'minimal' in i.display_name.lower()]
+    else:
+        images = [i for i in images if 'minimal' not in i.display_name.lower()]
+
     if len(images) == 0:
         return None
     else:
