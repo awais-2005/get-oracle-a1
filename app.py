@@ -45,7 +45,7 @@ class ExecutionTracker:
         self.end_time = None
         execution_logs[execution_id] = self
 
-    def log(self, message: str, err_type: "429" | "500" | "unknown" = None):
+    def log(self, message: str, err_type: str = None):
         if message != "":
             self.logs.append({
                 'timestamp': datetime.now().isoformat(),
