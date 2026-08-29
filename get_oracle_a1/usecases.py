@@ -1,3 +1,4 @@
+from typing import Callable, Optional
 import logging
 from time import sleep
 
@@ -7,7 +8,7 @@ from get_oracle_a1 import commands, config, helpers
 
 logger = logging.getLogger(__name__)
 RETRY_SEC = 120
-CREATION_RETRY_INTERVAL = 50 # Second (rate limit is 1-try/45sec)
+CREATION_RETRY_INTERVAL = 60 # Second (rate limit is 1-try/45sec)
 SUCCEED_DELAY = 300
 INCREASE_LOG_TERM = 10_000
 CREATE_LOG_TERM = 10
@@ -53,8 +54,17 @@ def increase(cmd: commands.IncreaseResource, oci_user: config.OCIUser) -> None:
             sleep(RETRY_SEC)
 
 
-def create(cmd: commands.CreateA1, oci_user: config.OCIUser) -> None:
+def create(
+    cmd: commands.CreateA1,
+    oci_user: config.OCIUser,
+    on_attempt: Optional[Callable[[str], None]] = None,
+) -> None:
+    def report(message: str) -> None:
+        if on_attempt is not None:
+            on_attempt(message)
+
     print("Creation started...")
+    report("Creation started...")
     if not helpers.check_a1_available(oci_user, cmd.availability_domain):
         raise RuntimeError('Does not support A1.Flex')
 
@@ -63,13 +73,14 @@ def create(cmd: commands.CreateA1, oci_user: config.OCIUser) -> None:
         raise RuntimeError(f'Failed to find image {cmd.os_name}-{cmd.os_version}')
 
     logger.info(f'Try to create {cmd}')
-
     print(f'Try to create {cmd}')
+    report(f'Try to create {cmd}')
 
     try_count = 0
     count_after_last_rate_limited = 0
     while True:
         print(f"Attempt {try_count + 1}...")
+        report(f"Attempt {try_count + 1}...")
         try:
             instance = helpers.create_a1(
                 oci_user=oci_user,
@@ -85,11 +96,14 @@ def create(cmd: commands.CreateA1, oci_user: config.OCIUser) -> None:
 
         except ServiceError as e:
             print(f"Failed: {e.message}")
+            report(f"Attempt {try_count + 1} failed: [{e.status} {e.code}] {e.message}")
+
             if e.status == 429 and e.code == 'TooManyRequests' and e.message == 'Too many requests for the user':
                 pass
 
             elif not (e.status == 500 and e.code == 'InternalError' and e.message == 'Out of host capacity.'):
                 logger.exception(f'Failed to create instance with unknown reason. ({try_count} times tried)')
+                report(f"Unrecoverable error after {try_count + 1} attempts, giving up: {e.message}")
                 raise e
 
             else:
@@ -100,6 +114,7 @@ def create(cmd: commands.CreateA1, oci_user: config.OCIUser) -> None:
         else:
             logger.info(f'Succeed to create in {try_count} tries.')
             logger.info(instance)
+            report(f"Succeeded on attempt {try_count + 1}. Instance OCID: {instance.id}")
             break
 
         finally:
@@ -107,7 +122,7 @@ def create(cmd: commands.CreateA1, oci_user: config.OCIUser) -> None:
 
         if try_count % CREATE_LOG_TERM == 0:
             logger.info(f'Tried {try_count} times. Keep trying...')
-
+            report(f"Still trying — {try_count} attempts so far, will keep retrying")
 
 def list_availability_domain(_: commands.ListAvailabilityDomain, oci_user: config.OCIUser) -> None:
     for domain in helpers.list_availability_domain(oci_user):
