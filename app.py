@@ -6,6 +6,7 @@ Provides a UI to create, manage, and monitor instances
 import logging
 import os
 import tempfile
+import configparser
 import json
 import threading
 from datetime import datetime
@@ -95,22 +96,49 @@ def send_email(to_email: str, subject: str, body: str):
         return False
 
 
+def parse_oci_config(config_content: str, profile: str = 'DEFAULT') -> dict:
+    """Parse an OCI CLI-style config file (ini format) into a dict."""
+    parser = configparser.ConfigParser()
+    parser.read_string(config_content)
+    if profile not in parser:
+        raise ValueError(f"Profile '[{profile}]' not found in the uploaded config file")
+    section = parser[profile]
+    missing = [k for k in ('user', 'fingerprint', 'tenancy') if k not in section]
+    if missing:
+        raise ValueError(f"Config file is missing: {', '.join(missing)}")
+    return {
+        'user': section['user'],
+        'fingerprint': section['fingerprint'],
+        'tenancy': section['tenancy'],
+        'region': section.get('region', os.getenv('OCI_REGION', 'ap-hyderabad-1')),
+    }
+
 def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notification: bool):
     """Background task to create instance"""
     ssh_key_path: Optional[Path] = None
     try:
         tracker.log(f"Starting instance creation: {cmd_data['display_name']}")
 
-        # Load OCI user config
-        oci_config_path = os.getenv('OCI_CONFIG_FILE', '~/.oci/config')
+        # Load OCI user credentials, in priority order:
+        # 1) Config + key uploaded with this request
+        # 2) Server environment variables
         oci_profile = cmd_data.get('profile', 'DEFAULT')
+        config_content = cmd_data.get('oci_config_content')
+        key_content = cmd_data.get('oci_private_key_content')
 
-        # Try to load from file first, then from environment variables
-        try:
-            tracker.log(f"Loading OCI config from {oci_config_path}")
-            oci_user = config.OCIUser.from_config_file(oci_config_path, oci_profile)
-        except Exception:
-            tracker.log(f"Config file not found, trying environment variables")
+        if config_content and key_content:
+            tracker.log("Using OCI config uploaded with this request")
+            parsed = parse_oci_config(config_content, oci_profile)
+            oci_user = config.OCIUser(
+                user=parsed['user'],
+                key_content=key_content,
+                key_file=None,
+                fingerprint=parsed['fingerprint'],
+                tenancy=parsed['tenancy'],
+                region=parsed['region'],
+            )
+        else:
+            tracker.log("No config uploaded, using environment variables")
             oci_user = config.OCIUser(
                 user=os.getenv('OCI_USER'),
                 key_content=os.getenv('OCI_PRIVATE_KEY'),
