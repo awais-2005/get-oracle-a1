@@ -1,0 +1,1 @@
+poetry run get_oracle_a1 create --display-name clickhouse-1 --availability-domain "vMqB:AP-HYDERABAD-1-AD-1" --subnet-id "ocid1.subnet.oc1.ap-hyderabad-1.aaaaaaaadws6wuhtrpcjcapwhgsiwxo35j44444ce3xykcowbdigt2ugdoha" --ocpu 2 --memory 12 --os-name "Canonical Ubuntu" --os-version "22.04" --boot-volume-size 50 --ssh-authorized-keys ~/.ssh/id_rsa.pub

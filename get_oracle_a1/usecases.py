@@ -7,6 +7,7 @@ from get_oracle_a1 import commands, config, helpers
 
 logger = logging.getLogger(__name__)
 RETRY_SEC = 120
+CREATION_RETRY_INTERVAL = 50 # Second (rate limit is 1-try/45sec)
 SUCCEED_DELAY = 300
 INCREASE_LOG_TERM = 10_000
 CREATE_LOG_TERM = 10
@@ -53,6 +54,7 @@ def increase(cmd: commands.IncreaseResource, oci_user: config.OCIUser) -> None:
 
 
 def create(cmd: commands.CreateA1, oci_user: config.OCIUser) -> None:
+    print("Creation started...")
     if not helpers.check_a1_available(oci_user, cmd.availability_domain):
         raise RuntimeError('Does not support A1.Flex')
 
@@ -62,9 +64,12 @@ def create(cmd: commands.CreateA1, oci_user: config.OCIUser) -> None:
 
     logger.info(f'Try to create {cmd}')
 
+    print(f'Try to create {cmd}')
+
     try_count = 0
     count_after_last_rate_limited = 0
     while True:
+        print(f"Attempt {try_count + 1}...")
         try:
             instance = helpers.create_a1(
                 oci_user=oci_user,
@@ -79,6 +84,7 @@ def create(cmd: commands.CreateA1, oci_user: config.OCIUser) -> None:
             )
 
         except ServiceError as e:
+            print(f"Failed: {e.message}")
             if e.status == 429 and e.code == 'TooManyRequests' and e.message == 'Too many requests for the user':
                 pass
 
@@ -89,7 +95,7 @@ def create(cmd: commands.CreateA1, oci_user: config.OCIUser) -> None:
             else:
                 count_after_last_rate_limited += 1
 
-            sleep(3)  # to prevent rate limited
+            sleep(CREATION_RETRY_INTERVAL)  # to prevent rate limited
 
         else:
             logger.info(f'Succeed to create in {try_count} tries.')

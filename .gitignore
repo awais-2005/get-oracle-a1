@@ -1,3 +1,6 @@
+.vscode
+.oci
+
 ### Vim template
 # Swap
 [._]*.s[a-v][a-z]
@@ -32,7 +35,6 @@ tags
 
 # Generated files
 .idea/**/contentModel.xml
-
 # Sensitive or high-churn files
 .idea/**/dataSources/
 .idea/**/dataSources.ids

@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle A1.Flex Automation Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header-subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="email"],
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="email"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .form-group label.checkbox-label {
+            margin-bottom: 0;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 6px 12px rgba(108, 117, 125, 0.4);
+        }
+
+        .logs-section {
+            grid-column: 1 / -1;
+        }
+
+        .logs-container {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-left: 3px solid #667eea;
+            padding-left: 10px;
+        }
+
+        .log-time {
+            color: #999;
+            margin-right: 10px;
+        }
+
+        .log-message {
+            color: #333;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-running {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .status-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .status-failed {
+            background: #dc3545;
+            color: white;
+        }
+
+        .execution-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .execution-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .execution-title {
+            color: #333;
+            font-weight: 600;
+        }
+
+        .execution-details {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Oracle A1.Flex Automation Dashboard</h1>
+            <p class="header-subtitle">Create and manage Oracle Cloud A1.Flex instances with ease</p>
+        </header>
+
+        <div class="content">
+            <!-- Create Instance Form -->
+            <div class="card">
+                <h2>Create Instance</h2>
+                <div id="createAlert"></div>
+
+                <form id="createForm">
+                    <div class="form-group">
+                        <label>Instance Name *</label>
+                        <input type="text" name="display_name" placeholder="e.g., clickhouse-1" required>
+                        <div class="help-text">The display name for your instance</div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>OCPUs *</label>
+                            <input type="number" name="ocpu" min="1" max="80" value="2" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Memory (GB) *</label>
+                            <input type="number" name="memory" min="1" max="480" value="12" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Availability Domain *</label>
+                        <input type="text" name="availability_domain" placeholder="e.g., vMqB:AP-HYDERABAD-1-AD-1"
+                            required>
+                        <div class="help-text">Run 'list_availability_domain' to see options</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Subnet ID *</label>
+                        <input type="text" name="subnet_id" placeholder="ocid1.subnet.oc1..." required>
+                        <div class="help-text">Run 'list_available_subnet' to see options</div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Operating System *</label>
+                            <select name="os_name" required>
+                                <option>Canonical Ubuntu</option>
+                                <option>Oracle Linux</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>OS Version</label>
+                            <input type="text" name="os_version" placeholder="22.04">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Boot Volume Size (GB)</label>
+                        <input type="number" name="boot_volume_size" min="50" value="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label>SSH Public Key Path *</label>
+                        <input type="text" name="ssh_authorized_keys" placeholder="~/.ssh/id_rsa.pub" required>
+                        <div class="help-text">Full path to your SSH public key file</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>OCI Profile</label>
+                        <input type="text" name="profile" placeholder="DEFAULT" value="DEFAULT">
+                    </div>
+
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="sendNotification" name="send_notification">
+                            <label for="sendNotification" class="checkbox-label">Send email when complete</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="emailGroup" style="display: none;">
+                        <label>Email Address</label>
+                        <input type="email" name="notification_email" placeholder="your@email.com">
+                    </div>
+
+                    <button type="submit" id="createBtn">Create Instance</button>
+                </form>
+            </div>
+
+            <!-- Increase Resources Form -->
+            <div class="card">
+                <h2>Increase Resources</h2>
+                <div id="increaseAlert"></div>
+
+                <form id="increaseForm">
+                    <div class="form-group">
+                        <label>Instance Name *</label>
+                        <input type="text" name="display_name" placeholder="e.g., clickhouse-1" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>New OCPUs *</label>
+                            <input type="number" name="ocpu" min="1" max="80" value="4" required>
+                        </div>
+                        <div class="form-group">
+                            <label>New Memory (GB) *</label>
+                            <input type="number" name="memory" min="1" max="480" value="24" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" name="incremental" id="incremental">
+                            <label for="incremental" class="checkbox-label">Incremental (scale up gradually)</label>
+                        </div>
+                        <div class="help-text">If checked, will increase in small steps to avoid errors</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>OCI Profile</label>
+                        <input type="text" name="profile" placeholder="DEFAULT" value="DEFAULT">
+                    </div>
+
+                    <button type="submit" id="increaseBtn">Increase Resources</button>
+                </form>
+            </div>
+
+            <!-- Execution Logs Section -->
+            <div class="card logs-section">
+                <h2>Recent Executions</h2>
+                <div id="executionsList">
+                    <p style="color: #999; text-align: center;">No executions yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle email field
+        document.getElementById('sendNotification').addEventListener('change', (e) => {
+            document.getElementById('emailGroup').style.display = e.target.checked ? 'block' : 'none';
+        });
+
+        // Create instance form
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await submitForm('create', 'createForm', 'createAlert', 'createBtn');
+        });
+
+        // Increase resources form
+        document.getElementById('increaseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await submitForm('increase', 'increaseForm', 'increaseAlert', 'increaseBtn');
+        });
+
+        async function submitForm(action, formId, alertId, btnId) {
+            const form = document.getElementById(formId);
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData);
+
+            // Handle checkboxes
+            if (formData.has('send_notification')) {
+                data.send_notification = formData.get('send_notification') === 'on';
+            }
+            if (formData.has('incremental')) {
+                data.incremental = formData.get('incremental') === 'on';
+            }
+
+            const btn = document.getElementById(btnId);
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loader"></span>Processing...';
+
+            try {
+                const endpoint = action === 'create' ? '/api/create-instance' : '/api/increase-resources';
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                showAlert(alertId, `Task started! ID: ${result.execution_id}`, 'info');
+
+                // Refresh execution list
+                setTimeout(loadExecutions, 1000);
+            } catch (error) {
+                showAlert(alertId, `Error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        function showAlert(elementId, message, type) {
+            const alert = document.getElementById(elementId);
+            alert.textContent = message;
+            alert.className = `alert alert-${type} show`;
+            setTimeout(() => {
+                alert.classList.remove('show');
+            }, 5000);
+        }
+
+        async function loadExecutions() {
+            try {
+                const response = await fetch('/api/executions');
+                if (!response.ok) throw new Error('Failed to load executions');
+
+                const executions = await response.json();
+                const container = document.getElementById('executionsList');
+
+                if (executions.length === 0) {
+                    container.innerHTML = '<p style="color: #999; text-align: center;">No executions yet</p>';
+                    return;
+                }
+
+                container.innerHTML = executions.map(exec => `
+                    <div class="execution-item">
+                        <div class="execution-header">
+                            <div>
+                                <div class="execution-title">${exec.id}</div>
+                                <div class="execution-details">
+                                    Started: ${new Date(exec.start_time).toLocaleString()}
+                                </div>
+                            </div>
+                            <span class="status-badge status-${exec.status}">${exec.status}</span>
+                        </div>
+                        <div class="logs-container">
+                            ${exec.logs.length === 0 ? '<p style="color: #999;">No logs yet</p>' :
+                        exec.logs.map(log => `
+                                <div class="log-entry">
+                                    <span class="log-time">${new Date(log.timestamp).toLocaleTimeString()}</span>
+                                    <span class="log-message">${escapeHtml(log.message)}</span>
+                                </div>
+                            `).join('')
+                    }
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading executions:', error);
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Auto-refresh executions
+        loadExecutions();
+        setInterval(loadExecutions, 2000);
+    </script>
+</body>
+
+</html>
