@@ -58,9 +58,9 @@ class ExecutionTracker:
             return
 
         if err_type in self.e:
-            e[err_type] += 1
+            self.e[err_type] += 1
         else:
-            e[err_type] = 1
+            self.e[err_type] = 1
 
     def finish(self, status: str = 'success'):
         self.status = status
