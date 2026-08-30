@@ -179,28 +179,51 @@
             color: #333;
         }
 
+        .con1 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .con2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .status-badge {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
+            padding: 4px 8px;
+            background: #cacaca;
+            border: 2px solid #999;
+            border-radius: 4px;
             font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
         }
 
         .status-running {
-            background: #ffc107;
-            color: #333;
+            background: #fff3cd;
+            color: #856404;
+            border-color: #ffeeba;
         }
 
         .status-success {
-            background: #28a745;
-            color: white;
+            background: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
         }
 
         .status-failed {
-            background: #dc3545;
-            color: white;
+            background: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+
+        .status-terminated {
+            background: #e2e3e5;
+            color: #6c757d;
+            border-color: #d6d8db;
         }
 
         .execution-item {
@@ -232,19 +255,21 @@
         .err-count {
             font-size: 12px;
             font-weight: 500;
-            padding: 2px 8px;
-            border-radius: 12px;
-            /* margin-left: 10px; */
+            padding: 6px 12px;
+            border-radius: 4px;
+            background: #cacaca;
         }
 
         .rate-limited {
-            background: #dc3545;
-            color: white;
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
         }
 
         .creation-failed {
-            background: #ffc107;
-            color: #333;
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
         }
 
         .alert {
@@ -760,6 +785,48 @@
 
         async function loadExecutions() {
             try {
+                // const mockExecutions = [
+                //     {
+                //         id: 'exec-12345',
+                //         start_time: Date.now() - 60000,
+                //         status: 'running',
+                //         logs: [
+                //             { timestamp: Date.now() - 50000, message: 'Started execution' },
+                //             { timestamp: Date.now() - 40000, message: 'Creating instance...' },
+                //         ],
+                //         e: { "e_429": 2, "e_500": 1 }
+                //     },
+                //     {
+                //         id: 'exec-67890',
+                //         start_time: Date.now() - 120000,
+                //         status: 'success',
+                //         logs: [
+                //             { timestamp: Date.now() - 110000, message: 'Started execution' },
+                //             { timestamp: Date.now() - 100000, message: 'Instance created successfully' },
+                //         ],
+                //         e: { "e_429": 0, "e_500": 0 }
+                //     },
+                //     {
+                //         id: 'exec-67fd890',
+                //         start_time: Date.now() - 120000,
+                //         status: 'terminated',
+                //         logs: [
+                //             { timestamp: Date.now() - 110000, message: 'Started execution' },
+                //             { timestamp: Date.now() - 100000, message: 'Instance created successfully' },
+                //         ],
+                //         e: { "e_429": 0, "e_500": 0 }
+                //     },
+                //     {
+                //         id: 'exec-6789fdgvz0',
+                //         start_time: Date.now() - 120000,
+                //         status: 'failed',
+                //         logs: [
+                //             { timestamp: Date.now() - 110000, message: 'Started execution' },
+                //             { timestamp: Date.now() - 100000, message: 'Instance created successfully' },
+                //         ],
+                //         e: { "e_429": 0, "e_500": 0 }
+                //     }
+                // ];
                 const response = await fetch('/api/executions');
                 if (!response.ok) throw new Error('Failed to load executions');
 
@@ -781,10 +848,14 @@
                                 </div>
 
                             </div>
-                            <div class="err-count rate-limited">Rate Limited: ${exec.e ? exec.e["e_429"] : 0}</div>
-                            <div class="err-count creation-failed">Creation Failed: ${exec.e ? exec.e["e_500"] : 0}</div>
-                            <button class="btn btn-danger" onclick="terminateExecution('${exec.id}')">Terminate</button>
-                            <span class="status-badge status-${exec.status}">${exec.status}</span>
+                            <div class="con1">
+                                ${exec.status === 'running' ? `<button class="btn btn-danger" onclick="terminateExecution('${exec.id}')">Terminate</button>` : ''}
+                                <div class="con2">
+                                    <div class="err-count rate-limited">Rate Limited: ${exec.e ? exec.e["e_429"] : 0}</div>
+                                    <div class="err-count creation-failed">Creation Failed: ${exec.e ? exec.e["e_500"] : 0}</div>
+                                    <span class="status-badge status-${exec.status}">${exec.status}</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="logs-container">
                             ${exec.logs.length === 0 ? '<p style="color: #999;">No logs yet</p>' :

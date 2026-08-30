@@ -109,7 +109,6 @@ def create(
             report(f"Finally after {try_count + 1} attempts got no Exception!")
 
         except ServiceError as e:
-
             if e.status == 429 and e.code == 'TooManyRequests' and e.message == 'Too many requests for the user':
                 report("", "e_429")
                 sleep(1) # to prevent rate limited
@@ -120,7 +119,8 @@ def create(
                 report(f"Unrecoverable error after {try_count + 1} attempts, giving up: {e.message}", "e_unknown")
                 raise e
             else:
-                report(f"Attempt {try_count + 1} failed: [{e.status} {e.code}] {e.message}", "e_500")
+                try_count += 1
+                report(f"Attempt {try_count} failed: [{e.status} {e.code}] {e.message}", "e_500")
                 sleep(CREATION_RETRY_INTERVAL) # to prevent rate limited
 
 
@@ -129,9 +129,6 @@ def create(
             logger.info(instance)
             report(f"Succeeded on attempt {try_count + 1}. Instance OCID: {instance.id}")
             break
-
-        finally:
-            try_count += 1
 
         if try_count % CREATE_LOG_TERM == 0:
             logger.info(f'Tried {try_count} times. Keep trying...')

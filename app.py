@@ -32,7 +32,7 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'change-me-in-production')
 # Store execution logs in memory
 execution_logs: Dict[str, list] = {}
 execution_threads: Dict[str, threading.Thread] = {}
-stop_events = []
+stop_events = {}
 
 
 class ExecutionTracker:
@@ -40,9 +40,13 @@ class ExecutionTracker:
 
     def __init__(self, execution_id: str):
         self.execution_id = execution_id
-        self.e = {} # Raise Exeptions
+        self.e = {
+            "e_429": 0,
+            "e_500": 0,
+            "e_unknown": 0,
+        } # Raise Exeptions
         self.logs = []
-        self.status = 'running'  # running, success, failed
+        self.status = 'running'  # running, success, failed, terminated
         self.start_time = datetime.now()
         self.end_time = None
         execution_logs[execution_id] = self
@@ -201,8 +205,12 @@ def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notific
         # Create instance
         usecases.create(create_cmd, oci_user, stop_event, on_attempt=tracker.log)
 
-        tracker.log(f"✓ Instance '{cmd_data['display_name']}' created successfully!")
-        tracker.finish('success')
+        if (execution_logs[tracker.execution_id].status == 'terminated'):
+            tracker.log(f"✓ Instance '{cmd_data['display_name']}' created successfully!")
+            tracker.finish('terminated')
+        else:
+            tracker.log(f"✓ Instance '{cmd_data['display_name']}' created successfully!")
+            tracker.finish('success')
 
         # Send email notification
         if send_notification:
@@ -309,12 +317,11 @@ def list_executions():
 @app.route('/api/stop/<execution_id>')
 def stop_execution(execution_id: str):
     """Get execution thread"""
-    stop_event = stop_events[execution_id]
-    if not stop_event:
-        return jsonify({'error': 'Execution stop_event not found'}), 404
-    stop_event.set()
-    execution_logs[execution_id].status = 'Failed'
-    return jsonify({'success': f'Execution {execution_id} has been terminated!'}), 200
+    if execution_id in stop_events:
+        stop_events[execution_id].set()
+        execution_logs[execution_id].status = 'terminated'
+        return jsonify({'success': f'Execution {execution_id} has been terminated!'}), 200
+    return jsonify({'error': 'Execution stop_event not found'}), 404
 
 @app.route('/api/executions/<execution_id>')
 def get_execution(execution_id: str):
