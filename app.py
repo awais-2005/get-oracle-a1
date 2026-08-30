@@ -307,7 +307,7 @@ def list_executions():
 
 
 @app.route('/api/stop/<execution_id>')
-def get_execution(execution_id: str):
+def stop_execution(execution_id: str):
     """Get execution thread"""
     stop_event = stop_events[execution_id]
     if not stop_event:
