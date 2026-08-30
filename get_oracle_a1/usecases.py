@@ -9,7 +9,7 @@ from get_oracle_a1 import commands, config, helpers
 
 logger = logging.getLogger(__name__)
 RETRY_SEC = 120
-CREATION_RETRY_INTERVAL = 50 # Second (rate limit is 1-try/45sec)
+CREATION_RETRY_INTERVAL = 65 # Second (rate limit is 1-try/~60sec)
 SUCCEED_DELAY = 300
 INCREASE_LOG_TERM = 10_000
 CREATE_LOG_TERM = 10
