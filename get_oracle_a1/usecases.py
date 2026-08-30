@@ -1,5 +1,6 @@
 from typing import Callable, Optional
 import logging
+import threading
 from time import sleep
 
 from oci.exceptions import ServiceError
@@ -8,7 +9,7 @@ from get_oracle_a1 import commands, config, helpers
 
 logger = logging.getLogger(__name__)
 RETRY_SEC = 120
-CREATION_RETRY_INTERVAL = 60 # Second (rate limit is 1-try/45sec)
+CREATION_RETRY_INTERVAL = 50 # Second (rate limit is 1-try/45sec)
 SUCCEED_DELAY = 300
 INCREASE_LOG_TERM = 10_000
 CREATE_LOG_TERM = 10
@@ -57,6 +58,7 @@ def increase(cmd: commands.IncreaseResource, oci_user: config.OCIUser) -> None:
 def create(
     cmd: commands.CreateA1,
     oci_user: config.OCIUser,
+    stop_event: threading.Event,
     on_attempt: Optional[Callable[[str, str], None]] = None,
 ) -> None:
     def report(message: str, err_type: str = None) -> None:
@@ -89,8 +91,7 @@ def create(
     report(f'Try to create {cmd}')
 
     try_count = 0
-    while True:
-        report(f"Attempt {try_count + 1}...")
+    while not stop_event.is_set():
         try:
             instance = helpers.create_a1(
                 oci_user=oci_user,

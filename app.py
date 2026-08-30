@@ -32,6 +32,7 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'change-me-in-production')
 # Store execution logs in memory
 execution_logs: Dict[str, list] = {}
 execution_threads: Dict[str, threading.Thread] = {}
+stop_events = []
 
 
 class ExecutionTracker:
@@ -155,7 +156,7 @@ def build_oci_user_from_request(data: dict):
     )
     return oci_user, parsed
 
-def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notification: bool):
+def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notification: bool, stop_event: threading.Event):
     """Background task to create instance"""
     ssh_key_path: Optional[Path] = None
     try:
@@ -198,7 +199,7 @@ def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notific
         tracker.log(f"Command prepared: {create_cmd}")
 
         # Create instance
-        usecases.create(create_cmd, oci_user, on_attempt=tracker.log)
+        usecases.create(create_cmd, oci_user, stop_event, on_attempt=tracker.log)
 
         tracker.log(f"✓ Instance '{cmd_data['display_name']}' created successfully!")
         tracker.finish('success')
@@ -250,13 +251,16 @@ def create_instance():
         tracker = ExecutionTracker(execution_id)
 
         # Start in background thread
+        stop_event = threading.Event()
         thread = threading.Thread(
             target=create_instance_task,
-            args=(tracker, data, data.get('send_notification', False))
+            args=(tracker, data, data.get('send_notification', False), stop_event)
         )
-        thread.daemon = True
+        thread.daemon = True # make it a background thread
         thread.start()
         execution_threads[execution_id] = thread
+        stop_events[execution_id] = stop_event
+
 
         return jsonify({
             'execution_id': execution_id,
@@ -301,6 +305,16 @@ def list_executions():
 
     return jsonify(executions)
 
+
+@app.route('/api/stop/<execution_id>')
+def get_execution(execution_id: str):
+    """Get execution thread"""
+    stop_event = stop_events[execution_id]
+    if not stop_event:
+        return jsonify({'error': 'Execution stop_event not found'}), 404
+    stop_event.set()
+    execution_logs[execution_id].status = 'Failed'
+    return jsonify({'success': f'Execution {execution_id} has been terminated!'}), 200
 
 @app.route('/api/executions/<execution_id>')
 def get_execution(execution_id: str):

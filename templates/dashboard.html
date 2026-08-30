@@ -127,38 +127,18 @@
         }
 
         button {
-            background: #cacaca;
             color: #3c3c3c;
-            border: none;
-            padding: 12px 30px;
+            padding: 8px 16px;
             border-radius: 4px;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 500;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
-        }
-
-        button:active {
-            transform: translateY(0);
         }
 
         button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-        }
-
-        .btn-secondary:hover {
-            box-shadow: 0 6px 12px rgba(108, 117, 125, 0.4);
         }
 
         .logs-section {
@@ -767,6 +747,17 @@
             }
         });
 
+        async function terminateExecution(execution_id) {
+            try {
+                const response = await fetch('/api/stop/' + execution_id);
+                if (!response.ok) throw new Error('Failed to terminate execution');
+                loadExecutions();
+            } catch (error) {
+                showAlert('Could not terminate', `Error: ${error.message}`, 'error');
+                console.error('Error terminating execution:', error);
+            }
+        }
+
         async function loadExecutions() {
             try {
                 const response = await fetch('/api/executions');
@@ -792,6 +783,7 @@
                             </div>
                             <div class="err-count rate-limited">Rate Limited: ${exec.e ? exec.e["e_429"] : 0}</div>
                             <div class="err-count creation-failed">Creation Failed: ${exec.e ? exec.e["e_500"] : 0}</div>
+                            <button class="btn btn-danger" onclick="terminateExecution('${exec.id}')">Terminate</button>
                             <span class="status-badge status-${exec.status}">${exec.status}</span>
                         </div>
                         <div class="logs-container">
