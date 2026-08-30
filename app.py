@@ -206,7 +206,7 @@ def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notific
         usecases.create(create_cmd, oci_user, stop_event, on_attempt=tracker.log)
 
         if (execution_logs[tracker.execution_id].status == 'terminated'):
-            tracker.log(f"✓ Instance '{cmd_data['display_name']}' created successfully!")
+            tracker.log(f"Terminating execution on user's demand")
             tracker.finish('terminated')
         else:
             tracker.log(f"✓ Instance '{cmd_data['display_name']}' created successfully!")
