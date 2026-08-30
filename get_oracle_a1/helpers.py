@@ -93,8 +93,8 @@ def increase_resource(oci_user: OCIUser, instance: Instance, step: IncreaseStep)
 
 
 @cache
-def check_a1_available(oci_user: OCIUser, availability_domain: str) -> bool:
-    return find_target_shape(oci_user=oci_user, shape=TARGET_SHAPE, availability_domain=availability_domain) is not None
+def check_a1_available(oci_user: OCIUser, availability_domain: str, shape: str = TARGET_SHAPE) -> bool:
+    return find_target_shape(oci_user=oci_user, shape=shape, availability_domain=availability_domain) is not None
 
 
 @cache
@@ -108,12 +108,11 @@ def find_target_shape(oci_user: OCIUser, shape: str, availability_domain: str) -
 
 
 def calc_next_increase_step(
-    oci_user: OCIUser, instance: Instance, target_ocpu: int, target_memory: int, incremental: bool
+    oci_user: OCIUser, instance: Instance, target_ocpu: int, target_memory: int, incremental: bool, _shape: str = TARGET_SHAPE
 ) -> IncreaseStep:
-    shape = find_target_shape(oci_user=oci_user, shape=TARGET_SHAPE, availability_domain=instance.availability_domain)
+    shape = find_target_shape(oci_user=oci_user, shape=_shape, availability_domain=instance.availability_domain)
     if shape is None:
-        # TODO: custom exception
-        raise RuntimeError(f'Failed to find shape {TARGET_SHAPE}')
+        raise RuntimeError(f'Failed to find shape {_shape or TARGET_SHAPE}')
 
     resource_limit = get_a1_res_limit(oci_user, instance.availability_domain)
 
@@ -135,10 +134,9 @@ def calc_next_increase_step(
     )
 
 
-def verify_instance_for_increasing(instance: Instance, resource_limit: ResourceLimit) -> None:
-    if instance.shape != TARGET_SHAPE:
-        # TODO: custom exception
-        raise ValueError(f'{instance.shape} is not A1 Flex')
+def verify_instance_for_increasing(instance: Instance, resource_limit: ResourceLimit, shape: str = TARGET_SHAPE) -> None:
+    if instance.shape != shape:
+        raise ValueError(f'{instance.shape} is not {shape}')
 
     if (
         instance.shape_config.ocpus >= resource_limit.ocpu
@@ -148,7 +146,7 @@ def verify_instance_for_increasing(instance: Instance, resource_limit: ResourceL
         raise ValueError('No room for resource extending')
 
 
-def get_image(oci_user: OCIUser, os_name: str, os_version: Optional[str]) -> Optional[Image]:
+def get_image(oci_user: OCIUser, os_name: str, os_version: Optional[str], shape: str = TARGET_SHAPE) -> Optional[list[Image]]:
     client = ComputeClient(config=oci_user.config)
 
     # OCI's operating_system_version field is always a plain number like
@@ -163,7 +161,7 @@ def get_image(oci_user: OCIUser, os_name: str, os_version: Optional[str]) -> Opt
     images: Sequence[Image] = sorted(
         client.list_images(
             oci_user.compartment_id,
-            shape=TARGET_SHAPE,
+            shape=shape,
             operating_system=os_name,
             operating_system_version=normalized_version,
         ).data,
@@ -182,26 +180,27 @@ def get_image(oci_user: OCIUser, os_name: str, os_version: Optional[str]) -> Opt
     if len(images) == 0:
         return None
     else:
-        return images[0]
+        return images
 
 
 def create_a1(
     oci_user: OCIUser,
     availability_domain: str,
+    image: Image,
     target_ocpu: int,
     target_memory: int,
-    image: Image,
     display_name: str,
     subnet_id: str,
     boot_volume_size: Optional[float],
     ssh_authorized_keys: Path,
+    shape: str = TARGET_SHAPE,
 ) -> Instance:
     client = ComputeClient(config=oci_user.config)
     return client.launch_instance(
         LaunchInstanceDetails(
             display_name=display_name,
             compartment_id=oci_user.compartment_id,
-            shape=TARGET_SHAPE,
+            shape=shape,
             shape_config=LaunchInstanceShapeConfigDetails(
                 ocpus=target_ocpu,
                 memory_in_gbs=target_memory,
