@@ -186,7 +186,7 @@ def get_image(oci_user: OCIUser, os_name: str, os_version: Optional[str], shape:
 def create_a1(
     oci_user: OCIUser,
     availability_domain: str,
-    image: Image,
+    image_id: str,
     target_ocpu: int,
     target_memory: int,
     display_name: str,
@@ -211,7 +211,7 @@ def create_a1(
                 hostname_label=display_name,
             ),
             source_details=InstanceSourceViaImageDetails(
-                image_id=image.id,
+                image_id=image_id,
                 boot_volume_size_in_gbs=boot_volume_size,
             ),
             metadata=dict(
@@ -224,6 +224,37 @@ def create_a1(
             # ),
         )
     ).data
+
+
+def list_shapes(oci_user: OCIUser, availability_domain: str) -> Sequence[Shape]:
+    client = ComputeClient(config=oci_user.config)
+    return client.list_shapes(oci_user.compartment_id, availability_domain=availability_domain).data
+
+
+def group_shape_series(shapes: Iterable[Shape]) -> dict[str, list[str]]:
+    """Group VM shape names into {series: [full shape name, ...]}.
+
+    OCI shape names look like 'VM.Standard.A1.Flex' or 'VM.DenseIO.E4.Flex'.
+    'series' here is the second dot-segment ('Standard', 'DenseIO', ...).
+    Bare-metal ('BM.*') shapes are dropped - this dashboard is VM-only.
+    """
+    series_map: dict[str, list[str]] = {}
+    for s in shapes:
+        parts = s.shape.split('.')
+        if len(parts) < 2 or parts[0] != 'VM':
+            continue
+        series = parts[1]
+        names = series_map.setdefault(series, [])
+        if s.shape not in names:
+            names.append(s.shape)
+    return series_map
+
+
+def list_images_for_shape(oci_user: OCIUser, shape: str) -> Sequence[Image]:
+    """All images compatible with a shape, no OS name/version filter -
+    the caller (dashboard) groups/filters these client-side."""
+    client = ComputeClient(config=oci_user.config)
+    return client.list_images(oci_user.compartment_id, shape=shape).data
 
 
 def list_available_subnet(oci_user: OCIUser) -> Iterable[Subnet]:

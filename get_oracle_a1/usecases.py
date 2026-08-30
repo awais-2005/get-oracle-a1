@@ -63,14 +63,26 @@ def create(
         if on_attempt is not None:
             on_attempt(message, err_type)
 
+    shape = cmd.shape or helpers.TARGET_SHAPE
+
     print("Creation started...")
     report("Creation started...")
-    if not helpers.check_a1_available(oci_user, cmd.availability_domain):
-        raise RuntimeError('Does not support A1.Flex')
+    if not helpers.check_a1_available(oci_user, cmd.availability_domain, shape=shape):
+        raise RuntimeError(f'{shape} is not available in {cmd.availability_domain}')
 
-    image = helpers.get_image(oci_user=oci_user, os_name=cmd.os_name, os_version=cmd.os_version)
-    if image is None:
-        raise RuntimeError(f'Failed to find image {cmd.os_name}-{cmd.os_version}')
+    if cmd.image_id:
+        # Dashboard already resolved this to an exact OCID via the image
+        # dropdowns - no search needed.
+        image_id = cmd.image_id
+        report(f"Using selected image: {image_id}")
+    else:
+        # Legacy path (CLI, or any caller without a dashboard-picked image):
+        # search by name/version and take the newest match.
+        images = helpers.get_image(oci_user=oci_user, os_name=cmd.os_name, os_version=cmd.os_version, shape=shape)
+        if not images:
+            raise RuntimeError(f'Failed to find image {cmd.os_name}-{cmd.os_version}')
+        image_id = images[0].id
+        report(f"Auto-selected image: {images[0].display_name}")
 
     logger.info(f'Try to create {cmd}')
     # print(f'Try to create {cmd}')
@@ -85,11 +97,12 @@ def create(
                 availability_domain=cmd.availability_domain,
                 target_ocpu=cmd.target_ocpu,
                 target_memory=cmd.target_memory,
-                image=image,
+                image_id=image_id,
                 display_name=cmd.display_name,
                 subnet_id=cmd.subnet_id,
                 boot_volume_size=cmd.boot_volume_size,
                 ssh_authorized_keys=cmd.ssh_authorized_keys,
+                shape=shape,
             )
 
             report(f"Finally after {try_count + 1} attempts got no Exception!")

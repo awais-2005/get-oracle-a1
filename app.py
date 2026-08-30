@@ -109,21 +109,51 @@ def send_email(to_email: str, subject: str, body: str):
 
 
 def parse_oci_config(config_content: str, profile: str = 'DEFAULT') -> dict:
-    """Parse an OCI CLI-style config file (ini format) into a dict."""
+    """Parse an OCI CLI-style config file (ini format) into a dict.
+
+    subnetId is a non-standard key we ask users to add to their config file
+    so the dashboard never needs a separate typed subnet field. configparser
+    lowercases option names on read regardless of how they're cased in the
+    file, so 'subnetId' is read back as 'subnetid'.
+    """
     parser = configparser.ConfigParser()
     parser.read_string(config_content)
     if profile not in parser:
         raise ValueError(f"Profile '[{profile}]' not found in the uploaded config file")
     section = parser[profile]
-    missing = [k for k in ('user', 'fingerprint', 'tenancy') if k not in section]
+    missing = [k for k in ('user', 'fingerprint', 'tenancy', 'subnetid') if k not in section]
     if missing:
-        raise ValueError(f"Config file is missing: {', '.join(missing)}")
+        pretty = ['subnetId' if k == 'subnetid' else k for k in missing]
+        raise ValueError(f"Config file is missing: {', '.join(pretty)}")
     return {
         'user': section['user'],
         'fingerprint': section['fingerprint'],
         'tenancy': section['tenancy'],
         'region': section.get('region', os.getenv('OCI_REGION', 'ap-hyderabad-1')),
+        'subnet_id': section['subnetid'],
     }
+
+
+def build_oci_user_from_request(data: dict):
+    """Build (OCIUser, parsed_config_dict) from the config/key content the
+    dashboard uploaded with this request. Raises ValueError if either the
+    files are missing or the config can't be parsed."""
+    config_content = (data or {}).get('oci_config_content')
+    key_content = (data or {}).get('oci_private_key_content')
+    if not config_content or not key_content:
+        raise ValueError("OCI config file and private key file are both required")
+
+    profile = (data or {}).get('profile') or 'DEFAULT'
+    parsed = parse_oci_config(config_content, profile)
+    oci_user = config.OCIUser(
+        user=parsed['user'],
+        key_content=key_content,
+        key_file=None,
+        fingerprint=parsed['fingerprint'],
+        tenancy=parsed['tenancy'],
+        region=parsed['region'],
+    )
+    return oci_user, parsed
 
 def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notification: bool):
     """Background task to create instance"""
@@ -131,34 +161,9 @@ def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notific
     try:
         tracker.log(f"Starting instance creation: {cmd_data['display_name']}")
 
-        # Load OCI user credentials, in priority order:
-        # 1) Config + key uploaded with this request
-        # 2) Server environment variables
-        oci_profile = cmd_data.get('profile', 'DEFAULT')
-        config_content = cmd_data.get('oci_config_content')
-        key_content = cmd_data.get('oci_private_key_content')
-
-        if config_content and key_content:
-            tracker.log("Using OCI config uploaded with this request")
-            parsed = parse_oci_config(config_content, oci_profile)
-            oci_user = config.OCIUser(
-                user=parsed['user'],
-                key_content=key_content,
-                key_file=None,
-                fingerprint=parsed['fingerprint'],
-                tenancy=parsed['tenancy'],
-                region=parsed['region'],
-            )
-        else:
-            tracker.log("No config uploaded, using environment variables")
-            oci_user = config.OCIUser(
-                user=os.getenv('OCI_USER'),
-                key_content=os.getenv('OCI_PRIVATE_KEY'),
-                key_file=None,
-                fingerprint=os.getenv('OCI_FINGERPRINT'),
-                tenancy=os.getenv('OCI_TENANCY'),
-                region=os.getenv('OCI_REGION', 'ap-hyderabad-1'),
-            )
+        oci_user, parsed = build_oci_user_from_request(cmd_data)
+        tracker.log("Using OCI config uploaded with this request")
+        subnet_id = parsed['subnet_id']
 
         # Prepare SSH key: the dashboard now uploads the key's content
         # directly (a filesystem path typed in the browser can't exist on
@@ -179,9 +184,11 @@ def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notific
         create_cmd = commands.CreateA1(
             availability_domain=cmd_data['availability_domain'],
             display_name=cmd_data['display_name'],
-            os_name=cmd_data['os_name'],
+            os_name=cmd_data.get('os_name'),
             os_version=cmd_data.get('os_version'),
-            subnet_id=cmd_data['subnet_id'],
+            image_id=cmd_data.get('image_id'),
+            shape=cmd_data.get('shape'),
+            subnet_id=subnet_id,
             target_ocpu=int(cmd_data['ocpu']),
             target_memory=int(cmd_data['memory']),
             boot_volume_size=float(cmd_data.get('boot_volume_size', 100)),
@@ -205,9 +212,10 @@ def create_instance_task(tracker: ExecutionTracker, cmd_data: dict, send_notific
                     f"Oracle Instance Created: {cmd_data['display_name']}",
                     f"Instance '{cmd_data['display_name']}' has been successfully created on Oracle Cloud.\n\n"
                     f"Configuration:\n"
+                    f"- Shape: {cmd_data.get('shape') or 'VM.Standard.A1.Flex'}\n"
                     f"- OCPUs: {cmd_data['ocpu']}\n"
                     f"- Memory: {cmd_data['memory']} GB\n"
-                    f"- OS: {cmd_data['os_name']} {cmd_data.get('os_version', '')}\n"
+                    f"- OS: {cmd_data.get('os_name', '')} {cmd_data.get('os_version', '')}\n"
                     f"- Availability Domain: {cmd_data['availability_domain']}\n"
                 )
 
@@ -301,6 +309,71 @@ def get_execution(execution_id: str):
     if not tracker:
         return jsonify({'error': 'Execution not found'}), 404
     return jsonify(tracker.to_dict())
+
+
+@app.route('/api/resources/availability-domains', methods=['POST'])
+def resource_availability_domains():
+    """List availability domains for the uploaded credentials, plus the
+    subnet_id parsed out of the config file (so the frontend can carry it
+    forward without ever showing a subnet field)."""
+    try:
+        data = request.json
+        oci_user, parsed = build_oci_user_from_request(data)
+        domains = [d.name for d in helpers.list_availability_domain(oci_user)]
+        if not domains:
+            return jsonify({'error': 'No availability domains found for this tenancy'}), 400
+        return jsonify({
+            'availability_domains': domains,
+            'subnet_id': parsed['subnet_id'],
+        })
+    except Exception as e:
+        logger.exception("Error listing availability domains")
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/api/resources/shapes', methods=['POST'])
+def resource_shapes():
+    """List VM shapes available in the given availability domain, grouped
+    into {series: [full shape name, ...]}."""
+    try:
+        data = request.json
+        oci_user, _ = build_oci_user_from_request(data)
+        availability_domain = data['availability_domain']
+        shapes = helpers.list_shapes(oci_user, availability_domain)
+        series_map = helpers.group_shape_series(shapes)
+        if not series_map:
+            return jsonify({'error': f'No VM shapes found in {availability_domain}'}), 400
+        return jsonify({'series': series_map})
+    except Exception as e:
+        logger.exception("Error listing shapes")
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/api/resources/images', methods=['POST'])
+def resource_images():
+    """List every image compatible with the given shape. The frontend
+    derives the Image / Version / Build dropdowns from this one list."""
+    try:
+        data = request.json
+        oci_user, _ = build_oci_user_from_request(data)
+        shape = data['shape']
+        images = helpers.list_images_for_shape(oci_user, shape)
+        if not images:
+            return jsonify({'error': f'No images found for shape {shape}'}), 400
+        return jsonify({
+            'images': [
+                {
+                    'id': img.id,
+                    'display_name': img.display_name,
+                    'os_name': img.operating_system,
+                    'os_version': img.operating_system_version,
+                }
+                for img in images
+            ]
+        })
+    except Exception as e:
+        logger.exception("Error listing images")
+        return jsonify({'error': str(e)}), 400
 
 
 @app.route('/api/config')

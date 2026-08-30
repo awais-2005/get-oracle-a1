@@ -323,6 +323,21 @@
             color: #666;
             margin-top: 5px;
         }
+
+        .hidden {
+            display: none !important;
+        }
+
+        select:disabled {
+            background: #eee;
+            cursor: not-allowed;
+        }
+
+        .step-note {
+            font-size: 12px;
+            color: #667eea;
+            margin-top: 4px;
+        }
     </style>
 </head>
 
@@ -334,9 +349,43 @@
         </header>
 
         <div class="content">
-            <!-- Create Instance Form -->
-            <div class="card">
-                <h2>Create Instance</h2>
+            <!-- Step 1: Credential upload (always visible first) -->
+            <div class="card" id="uploadCard">
+                <h2>1. Upload Credentials</h2>
+                <div id="uploadAlert"></div>
+
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label>OCI Config File *</label>
+                        <input type="file" name="oci_config_file" accept=".txt,.ini,text/plain" required>
+                        <div class="help-text">Your OCI config file. Must include a <code>subnetId</code> line -
+                            this is used as the subnet for new instances, no separate field needed.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>OCI Private Key File *</label>
+                        <input type="file" name="oci_private_key_file" accept=".pem,.key,text/plain" required>
+                        <div class="help-text">Your id_rsa.pem private key, matching the config above</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>SSH Public Key File *</label>
+                        <input type="file" name="ssh_authorized_keys" accept=".pub,text/plain" required>
+                        <div class="help-text">Upload your id_rsa.pub - never upload the private key</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>OCI Profile</label>
+                        <input type="text" name="profile" placeholder="DEFAULT" value="DEFAULT">
+                    </div>
+
+                    <button type="submit" id="uploadBtn">Load Resources</button>
+                </form>
+            </div>
+
+            <!-- Step 2: Create Instance (rendered only after upload succeeds) -->
+            <div class="card hidden" id="createCard">
+                <h2>2. Create Instance</h2>
                 <div id="createAlert"></div>
 
                 <form id="createForm">
@@ -344,6 +393,38 @@
                         <label>Instance Name *</label>
                         <input type="text" name="display_name" placeholder="e.g., clickhouse-1" required>
                         <div class="help-text">The display name for your instance</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Availability Domain *</label>
+                        <select name="availability_domain" id="adSelect" required></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Image *</label>
+                        <select id="imageNameSelect" required></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Image Version *</label>
+                        <select id="imageVersionSelect" required></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Image Build *</label>
+                        <select id="imageBuildSelect" required></select>
+                        <div class="step-note" id="imageBuildNote"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Shape Series *</label>
+                        <select id="shapeSeriesSelect" required></select>
+                        <div class="help-text">Instance type is fixed to VM (no bare-metal shapes)</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Shape *</label>
+                        <select name="shape" id="shapeNameSelect" required></select>
                     </div>
 
                     <div class="form-row">
@@ -358,60 +439,8 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Availability Domain *</label>
-                        <input type="text" name="availability_domain" placeholder="e.g., vMqB:AP-HYDERABAD-1-AD-1"
-                            required>
-                        <div class="help-text">Run 'list_availability_domain' to see options</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Subnet ID *</label>
-                        <input type="text" name="subnet_id" placeholder="ocid1.subnet.oc1..." required>
-                        <div class="help-text">Run 'list_available_subnet' to see options</div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Operating System *</label>
-                            <select name="os_name" required>
-                                <option>Canonical Ubuntu</option>
-                                <option>Oracle Linux</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>OS Version</label>
-                            <input type="text" name="os_version" placeholder="22.04">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
                         <label>Boot Volume Size (GB)</label>
                         <input type="number" name="boot_volume_size" min="50" value="100">
-                    </div>
-
-                    <div class="form-group">
-                        <label>SSH Public Key File *</label>
-                        <input type="file" name="ssh_authorized_keys" accept=".pub,text/plain" required>
-                        <div class="help-text">Upload your id_rsa.pub — never upload the private key</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>OCI Config File (required)</label>
-                        <input type="file" name="oci_config_file" accept=".txt,.ini,text/plain" required>
-                        <div class="help-text">Upload your OCI config file (e.g. ~/.oci/config) — overrides server env
-                            vars for this request</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>OCI Private Key File (required)</label>
-                        <input type="file" name="oci_private_key_file" accept=".pem,.key,text/plain" required>
-                        <div class="help-text">Upload your id_rsa.pem — required together with the config file above
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>OCI Profile</label>
-                        <input type="text" name="profile" placeholder="DEFAULT" value="DEFAULT">
                     </div>
 
                     <div class="form-group">
@@ -421,7 +450,7 @@
                         </div>
                     </div>
 
-                    <div class="form-group" id="emailGroup" style="display: none;">
+                    <div class="form-group hidden" id="emailGroup">
                         <label>Email Address</label>
                         <input type="email" name="notification_email" placeholder="your@email.com">
                     </div>
@@ -430,7 +459,7 @@
                 </form>
             </div>
 
-            <!-- Increase Resources Form -->
+            <!-- Increase Resources Form (unchanged - not part of this pass) -->
             <div class="card">
                 <h2>Increase Resources</h2>
                 <div id="increaseAlert"></div>
@@ -481,22 +510,22 @@
     </div>
 
     <script>
-        // Toggle email field
-        document.getElementById('sendNotification').addEventListener('change', (e) => {
-            document.getElementById('emailGroup').style.display = e.target.checked ? 'block' : 'none';
-        });
-
-        // Create instance form
-        document.getElementById('createForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await submitForm('create', 'createForm', 'createAlert', 'createBtn');
-        });
-
-        // Increase resources form
-        document.getElementById('increaseForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await submitForm('increase', 'increaseForm', 'increaseAlert', 'increaseBtn');
-        });
+        // ---------------------------------------------------------------
+        // State held in memory after upload: raw file contents (re-sent
+        // with every resource-listing/create call, since the app has no
+        // server-side session) and the last resource list fetched at each
+        // cascade level, so child dropdowns can be rebuilt without a
+        // network round trip when a parent selection changes.
+        // ---------------------------------------------------------------
+        const creds = {
+            configContent: null,
+            keyContent: null,
+            sshKeyContent: null,
+            profile: 'DEFAULT',
+            subnetId: null,
+        };
+        let shapeSeriesMap = {};   // { series: [shapeName, ...] }
+        let imageList = [];        // [{id, display_name, os_name, os_version}, ...]
 
         function readFileAsText(file) {
             return new Promise((resolve, reject) => {
@@ -507,89 +536,6 @@
             });
         }
 
-        async function submitForm(action, formId, alertId, btnId) {
-            const form = document.getElementById(formId);
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData);
-
-            // Handle checkboxes
-            if (formData.has('send_notification')) {
-                data.send_notification = formData.get('send_notification') === 'on';
-            }
-            if (formData.has('incremental')) {
-                data.incremental = formData.get('incremental') === 'on';
-            }
-
-            // SSH key comes in as a File object (create form only) — read its
-            // text content so it can be sent as a normal JSON string.
-            const sshFile = formData.get('ssh_authorized_keys');
-            if (sshFile instanceof File) {
-                if (sshFile.size === 0) {
-                    showAlert(alertId, 'Please choose your SSH public key file (id_rsa.pub)', 'error');
-                    return;
-                }
-                try {
-                    data.ssh_authorized_keys = (await readFileAsText(sshFile)).trim();
-                } catch (err) {
-                    showAlert(alertId, 'Could not read the SSH key file', 'error');
-                    return;
-                }
-            }
-
-            // Optional: OCI config + private key uploaded with this request,
-            // overrides the server's OCI_* environment variables.
-            const ociConfigFile = formData.get('oci_config_file');
-            const ociKeyFile = formData.get('oci_private_key_file');
-            delete data.oci_config_file;
-            delete data.oci_private_key_file;
-
-            const hasConfig = ociConfigFile instanceof File && ociConfigFile.size > 0;
-            const hasKey = ociKeyFile instanceof File && ociKeyFile.size > 0;
-
-            if (hasConfig !== hasKey) {
-                showAlert(alertId, 'Upload both the OCI config file and the private key together, or neither', 'error');
-                return;
-            }
-            if (hasConfig && hasKey) {
-                try {
-                    data.oci_config_content = await readFileAsText(ociConfigFile);
-                    data.oci_private_key_content = await readFileAsText(ociKeyFile);
-                } catch (err) {
-                    showAlert(alertId, 'Could not read the OCI credential files', 'error');
-                    return;
-                }
-            }
-
-            const btn = document.getElementById(btnId);
-            const originalText = btn.textContent;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loader"></span>Processing...';
-
-            try {
-                const endpoint = action === 'create' ? '/api/create-instance' : '/api/increase-resources';
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                showAlert(alertId, `Task started! ID: ${result.execution_id}`, 'info');
-
-                // Refresh execution list
-                setTimeout(loadExecutions, 1000);
-            } catch (error) {
-                showAlert(alertId, `Error: ${error.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = originalText;
-            }
-        }
-
         function showAlert(elementId, message, type) {
             const alert = document.getElementById(elementId);
             alert.textContent = message;
@@ -598,6 +544,228 @@
                 alert.classList.remove('show');
             }, 5000);
         }
+
+        function setSelectOptions(selectEl, options, formatLabel) {
+            selectEl.innerHTML = '';
+            options.forEach((opt) => {
+                const el = document.createElement('option');
+                el.value = typeof opt === 'string' ? opt : opt.value;
+                el.textContent = formatLabel ? formatLabel(opt) : (typeof opt === 'string' ? opt : opt.label);
+                selectEl.appendChild(el);
+            });
+            // First option in the list is always the auto-selected default.
+            if (options.length > 0) {
+                selectEl.selectedIndex = 0;
+            }
+        }
+
+        async function postJson(url, body) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || `Request to ${url} failed`);
+            }
+            return result;
+        }
+
+        function credsPayload(extra) {
+            return {
+                oci_config_content: creds.configContent,
+                oci_private_key_content: creds.keyContent,
+                profile: creds.profile,
+                ...extra,
+            };
+        }
+
+        // ---------------------------------------------------------------
+        // Step 1: upload credentials, then bootstrap the cascade
+        // ---------------------------------------------------------------
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const btn = document.getElementById('uploadBtn');
+            const originalText = btn.textContent;
+
+            const configFile = formData.get('oci_config_file');
+            const keyFile = formData.get('oci_private_key_file');
+            const sshFile = formData.get('ssh_authorized_keys');
+
+            if (!(configFile instanceof File) || configFile.size === 0 ||
+                !(keyFile instanceof File) || keyFile.size === 0 ||
+                !(sshFile instanceof File) || sshFile.size === 0) {
+                showAlert('uploadAlert', 'Please choose all three files', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loader"></span>Loading...';
+
+            try {
+                creds.configContent = await readFileAsText(configFile);
+                creds.keyContent = await readFileAsText(keyFile);
+                creds.sshKeyContent = (await readFileAsText(sshFile)).trim();
+                creds.profile = formData.get('profile') || 'DEFAULT';
+
+                if (!creds.sshKeyContent.startsWith('ssh-rsa') &&
+                    !creds.sshKeyContent.startsWith('ssh-ed25519') &&
+                    !creds.sshKeyContent.startsWith('ecdsa-sha2-')) {
+                    throw new Error("That doesn't look like an SSH public key (id_rsa.pub)");
+                }
+
+                const adResult = await postJson('/api/resources/availability-domains', credsPayload());
+                creds.subnetId = adResult.subnet_id;
+
+                const adSelect = document.getElementById('adSelect');
+                setSelectOptions(adSelect, adResult.availability_domains);
+
+                document.getElementById('uploadCard').classList.add('hidden');
+                document.getElementById('createCard').classList.remove('hidden');
+
+                await onAvailabilityDomainChange();
+            } catch (error) {
+                showAlert('uploadAlert', `Error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+
+        // ---------------------------------------------------------------
+        // Cascade: Availability Domain -> Shape Series -> Shape Name
+        //          -> Image Name -> Image Version -> Image Build
+        // ---------------------------------------------------------------
+        async function onAvailabilityDomainChange() {
+            const ad = document.getElementById('adSelect').value;
+            try {
+                const result = await postJson('/api/resources/shapes', credsPayload({ availability_domain: ad }));
+                shapeSeriesMap = result.series;
+
+                const seriesSelect = document.getElementById('shapeSeriesSelect');
+                setSelectOptions(seriesSelect, Object.keys(shapeSeriesMap));
+                await onShapeSeriesChange();
+            } catch (error) {
+                showAlert('createAlert', `Error loading shapes: ${error.message}`, 'error');
+            }
+        }
+
+        async function onShapeSeriesChange() {
+            const series = document.getElementById('shapeSeriesSelect').value;
+            const nameSelect = document.getElementById('shapeNameSelect');
+            setSelectOptions(nameSelect, shapeSeriesMap[series] || []);
+            await onShapeNameChange();
+        }
+
+        async function onShapeNameChange() {
+            const shape = document.getElementById('shapeNameSelect').value;
+            if (!shape) return;
+            try {
+                const result = await postJson('/api/resources/images', credsPayload({ shape }));
+                imageList = result.images;
+
+                const names = [...new Set(imageList.map((i) => i.os_name))];
+                setSelectOptions(document.getElementById('imageNameSelect'), names);
+                onImageNameChange();
+            } catch (error) {
+                showAlert('createAlert', `Error loading images: ${error.message}`, 'error');
+            }
+        }
+
+        function onImageNameChange() {
+            const name = document.getElementById('imageNameSelect').value;
+            const versions = [...new Set(imageList.filter((i) => i.os_name === name).map((i) => i.os_version))];
+            setSelectOptions(document.getElementById('imageVersionSelect'), versions);
+            onImageVersionChange();
+        }
+
+        function onImageVersionChange() {
+            const name = document.getElementById('imageNameSelect').value;
+            const version = document.getElementById('imageVersionSelect').value;
+            const builds = imageList.filter((i) => i.os_name === name && i.os_version === version);
+            setSelectOptions(
+                document.getElementById('imageBuildSelect'),
+                builds.map((b) => ({ value: b.id, label: b.display_name })),
+            );
+            const note = document.getElementById('imageBuildNote');
+            note.textContent = builds.length > 1 ? `${builds.length} builds available for this version` : '';
+        }
+
+        document.getElementById('adSelect').addEventListener('change', onAvailabilityDomainChange);
+        document.getElementById('shapeSeriesSelect').addEventListener('change', onShapeSeriesChange);
+        document.getElementById('shapeNameSelect').addEventListener('change', onShapeNameChange);
+        document.getElementById('imageNameSelect').addEventListener('change', onImageNameChange);
+        document.getElementById('imageVersionSelect').addEventListener('change', onImageVersionChange);
+
+        // Toggle email field
+        document.getElementById('sendNotification').addEventListener('change', (e) => {
+            document.getElementById('emailGroup').classList.toggle('hidden', !e.target.checked);
+        });
+
+        // ---------------------------------------------------------------
+        // Step 2: submit instance creation
+        // ---------------------------------------------------------------
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData);
+            data.send_notification = formData.has('send_notification');
+
+            data.image_id = document.getElementById('imageBuildSelect').value;
+            data.os_name = document.getElementById('imageNameSelect').value;
+            data.os_version = document.getElementById('imageVersionSelect').value;
+            data.ssh_authorized_keys = creds.sshKeyContent;
+            data.oci_config_content = creds.configContent;
+            data.oci_private_key_content = creds.keyContent;
+            data.profile = creds.profile;
+
+            const btn = document.getElementById('createBtn');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loader"></span>Processing...';
+
+            try {
+                const result = await postJson('/api/create-instance', data);
+                showAlert('createAlert', `Task started! ID: ${result.execution_id}`, 'info');
+                setTimeout(loadExecutions, 1000);
+            } catch (error) {
+                showAlert('createAlert', `Error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+
+        // ---------------------------------------------------------------
+        // Increase Resources form (unchanged behavior from before)
+        // ---------------------------------------------------------------
+        document.getElementById('increaseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData);
+            data.incremental = formData.has('incremental');
+
+            const btn = document.getElementById('increaseBtn');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loader"></span>Processing...';
+
+            try {
+                const result = await postJson('/api/increase-resources', data);
+                showAlert('increaseAlert', `Task started! ID: ${result.execution_id}`, 'info');
+                setTimeout(loadExecutions, 1000);
+            } catch (error) {
+                showAlert('increaseAlert', `Error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
 
         async function loadExecutions() {
             try {
@@ -656,7 +824,7 @@
 
         // Auto-refresh executions
         loadExecutions();
-        // setInterval(loadExecutions, 60000);
+        // setInterval(loadExecutions, 2000);
     </script>
 </body>
 

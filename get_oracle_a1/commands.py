@@ -19,8 +19,10 @@ class IncreaseResource(Command):
 class CreateA1(Command):
     availability_domain: str
     display_name: str
-    os_name: str
+    os_name: Optional[str]
     os_version: Optional[str]
+    image_id: Optional[str]  # exact image OCID chosen in the dashboard; skips the name/version search when set
+    shape: Optional[str]  # full shape name, e.g. 'VM.Standard.A1.Flex'; defaults to TARGET_SHAPE when unset
     subnet_id: Optional[str]
     target_ocpu: Optional[int]
     target_memory: Optional[int]
